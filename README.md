@@ -1,0 +1,69 @@
+
+## 🛠️ 開発環境構築手順
+
+本プロジェクトは、YOLOv8によるオブジェクトトラッキングとFastAPIによるリアルタイム配信を組み合わせたものです。以下の手順に従って、開発環境を構築してください。
+
+### **1. 前提条件**
+
+  * Python 3.8以上
+  * pip (Pythonのパッケージマネージャー)
+  * Git
+
+### **2. リポジトリのクローン**
+
+まず、本プロジェクトのリポジトリをローカルにクローンします。
+
+```sh
+git clone https://github.com/your-username/your-repository-name.git
+cd your-repository-name
+```
+
+### **3. 仮想環境の作成と必要なライブラリのインストール**
+
+本プロジェクトの依存関係を管理するため、uvを使用します。
+
+```sh
+# uvをインストール
+pip install uv
+
+# 仮想環境を作成し、必要なライブラリをインストール
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
+```
+
+### **4. 必要なライブラリのインストール**
+
+`requirements.txt` に記載されているすべてのライブラリをインストールします。Ultralytics YOLOv8は、トラッキングに必要なOpenCV、OpenMP、PyTorchなどの依存関係も自動的にインストールします。
+
+```sh
+pip install -r requirements.txt
+```
+
+### **5. YOLOv8モデルのダウンロード**
+
+YOLOv8の学習済みモデルをダウンロードします。今回は、手軽に試せる `yolov8n.pt` を使用します。より高精度なモデルが必要な場合は、`yolov8s.pt` や `yolov8m.pt` などを検討してください。
+
+このモデルは、初めてYOLOv8を呼び出した際に自動でダウンロードされますが、事前に手動でダウンロードしておくことも可能です。
+
+```sh
+pip install ultralytics # Ultralyticsをインストール済みの場合は不要
+# pythonスクリプト内でモデルをロードする際に自動でダウンロードされます
+```
+
+### **6. 実行**
+
+uvを使用してアプリケーションを起動します。
+
+```sh
+# 仮想環境を有効化した状態で実行
+uvicorn main:app --reload
+
+# または、仮想環境を有効化せずにuv runで実行
+uv run uvicorn main:app --reload
+```
+
+  * `main:app` は、`main.py` ファイル内の `FastAPI` インスタンス名 `app` を指します。
+  * `--reload` オプションは、コードの変更を検知してサーバーを自動的に再起動します。
+
+サーバーが起動したら、ブラウザで **`http://127.0.0.1:8000`** にアクセスし、フロントエンドのインターフェースを確認してください。
