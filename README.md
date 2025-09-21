@@ -14,8 +14,8 @@
 まず、本プロジェクトのリポジトリをローカルにクローンします。
 
 ```sh
-git clone https://github.com/your-username/your-repository-name.git
-cd your-repository-name
+git clone https://github.com/yukibefree/project_yolo.git
+cd project_yolo
 ```
 
 ### **3. 仮想環境の作成と必要なライブラリのインストール**
@@ -32,26 +32,7 @@ source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
 
-### **4. 必要なライブラリのインストール**
-
-`requirements.txt` に記載されているすべてのライブラリをインストールします。Ultralytics YOLOv8は、トラッキングに必要なOpenCV、OpenMP、PyTorchなどの依存関係も自動的にインストールします。
-
-```sh
-pip install -r requirements.txt
-```
-
-### **5. YOLOv8モデルのダウンロード**
-
-YOLOv8の学習済みモデルをダウンロードします。今回は、手軽に試せる `yolov8n.pt` を使用します。より高精度なモデルが必要な場合は、`yolov8s.pt` や `yolov8m.pt` などを検討してください。
-
-このモデルは、初めてYOLOv8を呼び出した際に自動でダウンロードされますが、事前に手動でダウンロードしておくことも可能です。
-
-```sh
-pip install ultralytics # Ultralyticsをインストール済みの場合は不要
-# pythonスクリプト内でモデルをロードする際に自動でダウンロードされます
-```
-
-### **6. 実行**
+### **4. 実行**
 
 uvを使用してアプリケーションを起動します。
 

@@ -20,3 +20,17 @@ uv.lock
 .DS_Store
 **/.DS_Store
 */.DS_Store
+# Windowsの不要ファイル
+Thumbs.db
+desktop.ini
+
+# IDEの設定ファイル
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OSの一時ファイル
+.Trashes
+.Spotlight-V100
+.fseventsd
