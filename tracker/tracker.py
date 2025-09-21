@@ -43,7 +43,7 @@ class Tracker:
         # 処理後の映像を動画ファイルとして保存するかどうか。
         self.save_video = False
         # 出力動画を保存するディレクトリのパス
-        video_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'output')
+        video_path = os.path.join(root_dir, 'output')
         # 保存する動画のファイル名
         video_name = "interactive_tracker_output.avi"
         # 出力動画ファイルへの完全なパス
@@ -90,17 +90,30 @@ class Tracker:
             self.model = YOLO(model_file, task="detect")
 
         self.classes = self.model.names  # Store model class names
+        self.setup_camera()
+        self.setup_video_writer()
 
+    def setup_camera(self):
+        """
+        カメラをセットアップします。
+        """
         # カメラの選択
         select_camera = SelectCamera()
-        self.camera_index = select_camera.get_camera_index()
-        self.cap = cv2.VideoCapture(self.camera_index)
+        camera_index = select_camera.get_camera_index()
+        self.cap = cv2.VideoCapture(camera_index)
 
+    def setup_video_writer(self):
+        """
+        ビデオライターをセットアップします。
+        """
+        if not self.cap.isOpened():
+            LOGGER.error("カメラが開かれていません。ビデオライターをセットアップできません。")
+            return
         # Initialize video writer
         self.vw = None
         if self.save_video:
             self.w, self.h, self.fps = (int(self.cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))
-            self.vw = cv2.VideoWriter(video_output_path, cv2.VideoWriter_fourcc(*"mp4v"), self.fps, (self.w, self.h))
+            self.vw = cv2.VideoWriter(self.video_output_path, cv2.VideoWriter_fourcc(*"mp4v"), self.fps, (self.w, self.h))
 
         self.selected_object_id = None
         selected_bbox = None
@@ -183,7 +196,7 @@ class Tracker:
             param (Any): Additional parameters (not used).
         """
         if event == cv2.EVENT_LBUTTONDOWN:
-            detections = results[0].boxes.data if results[0].boxes is not None else []
+            detections = self.results[0].boxes.data if self.results[0].boxes is not None else []
             if detections is not None:
                 min_area = float("inf")
                 best_match = None
@@ -201,7 +214,13 @@ class Tracker:
                 if best_match:
                     self.selected_object_id, label = best_match
                     print(f"🔵 TRACKING STARTED: {label} (ID {self.selected_object_id})")
-
+                    
+    def close_camera(self):
+        self.cap.release()
+        if self.save_video and self.vw is not None:
+            self.vw.release()
+        cv2.destroyAllWindows()
+        
     def exec(self):
         cv2.namedWindow(self.window_name)
         cv2.setMouseCallback(self.window_name, self.click_event)
@@ -213,9 +232,9 @@ class Tracker:
             if not success:
                 break
 
-            results = self.model.track(im, conf=self.conf, iou=self.iou, max_det=self.max_det, tracker=self.tracker, classes=self.target_classes, **self.track_args)
+            self.results = self.model.track(im, conf=self.conf, iou=self.iou, max_det=self.max_det, tracker=self.tracker, classes=self.target_classes, **self.track_args)
             annotator = Annotator(im)
-            detections = results[0].boxes.data if results[0].boxes is not None else []
+            detections = self.results[0].boxes.data if self.results[0].boxes is not None else []
             detected_objects = []
             for track in detections:
                 track = track.tolist()
@@ -276,12 +295,7 @@ class Tracker:
             elif key == ord("c"):
                 LOGGER.info("🟢 TRACKING RESET")
                 self.selected_object_id = None
-
-        self.cap.release()
-        if self.save_video and self.vw is not None:
-            self.vw.release()
-        cv2.destroyAllWindows()
-
+        self.close_camera()
 
 if __name__ == '__main__':
     tracker = Tracker()
