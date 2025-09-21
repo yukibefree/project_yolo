@@ -10,6 +10,7 @@ import cv2
 from ultralytics import YOLO
 from ultralytics.utils import LOGGER
 from ultralytics.utils.plotting import Annotator, colors
+import asyncio
 
 # プロジェクトルートの設定
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -37,7 +38,7 @@ class Tracker:
 
         # --- 動画・表示設定 ---
         # 画面左上に現在のFPS（1秒あたりのフレーム数）を表示するかどうか。
-        self.show_fps = True
+        self.show_fps = False
         # 検出されたオブジェクトの信頼度（Confidence Score）を表示するかどうか。
         self.show_conf = False
         # 処理後の映像を動画ファイルとして保存するかどうか。
@@ -278,7 +279,7 @@ class Tracker:
             cv2.rectangle(im, (10 - 5, 25 - th - 5), (10 + tw + 5, 25 + bl), (255, 255, 255), -1)
             cv2.putText(im, fps_text, (10, 25), 0, 0.7, (104, 31, 17), 1, cv2.LINE_AA)
         
-        # 
+        # サーバー側のみの処理の場合
         if server:
             cv2.imshow(self.window_name, im)
             if self.save_video and self.vw is not None:
@@ -308,6 +309,7 @@ class Tracker:
             # JPEG形式にエンコード
             _, buffer = cv2.imencode('.jpg', frame)
             frame_bytes = buffer.tobytes()
+            
             # ストリームとしてフレームをyield
             yield (
                 b'--frame\r\n'
@@ -315,6 +317,22 @@ class Tracker:
             )
         self.close_camera()
 
+    async def ws_exec(self, im=None, raw=False):
+        while self.cap.isOpened():
+            if raw:
+                _, frame = self.cap.read()
+            else:
+                frame = self.track(im)
+            # JPEG形式にエンコード
+            _, buffer = cv2.imencode('.jpg', frame)
+            frame_bytes = buffer.tobytes()
+            
+            # 非同期でフレームをyield
+            yield frame_bytes
+            
+            await asyncio.sleep(0.01)
+            
+        self.close_camera()
 if __name__ == '__main__':
     tracker = Tracker()
     tracker.exec()
