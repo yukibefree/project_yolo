@@ -18,3 +18,5 @@ uv.lock
 
 # システムファイル
 .DS_Store
+**/.DS_Store
+*/.DS_Store
