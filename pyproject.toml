@@ -9,6 +9,7 @@ dependencies = [
     "lap>=0.5.12",
     "opencv-python>=4.11.0.86",
     "pytubefix>=9.5.1",
+    "pyyaml>=6.0.2",
     "streamlit>=1.49.1",
     "ultralytics>=8.3.202",
     "uvicorn>=0.36.0",

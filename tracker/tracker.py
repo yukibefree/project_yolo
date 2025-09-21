@@ -1,4 +1,5 @@
 # Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
+# 参考：https://github.com/ultralytics/ultralytics/blob/main/examples/YOLO-Interactive-Tracking-UI/interactive_tracker.py
 
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
 
 from utils.select_camera import SelectCamera
+from utils.common import load_yaml
 
 class Tracker:
     def __init__(self):
@@ -51,11 +53,13 @@ class Tracker:
         self.video_output_path = os.path.join(video_path, video_name)
 
         # --- トラッキング対象とYOLOモデル設定 ---
+        # 追跡クラスが格納されたファイルを読み取る
+        coco_data = load_yaml(os.path.join(model_path, 'coco.yaml'))
+        class_data = coco_data['names']
+        
         # 追跡するオブジェクトの種類をクラスIDで指定します。
-        # COCOデータセットのID: 0は人(person)、2は車(car)です。
-        PERSON_CLASS_ID = 0
-        CAR_CLASS_ID = 2
-        self.target_classes = [PERSON_CLASS_ID, CAR_CLASS_ID]
+        keys_to_extract = ['person', 'car']
+        self.target_classes = [key for key, value in class_data.items() if value in keys_to_extract]
 
         # オブジェクトとして認識する最低限の信頼度。低いと誤検出が増える可能性があります。
         self.conf = 0.3
