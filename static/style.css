@@ -6,24 +6,18 @@ body {
 }
 
 .container {
-  display: flex;
-  /* ここを column に変更して、子要素を縦に並べる */
-  flex-direction: column;
-  /* 縦並びなので gap を使うと上下の隙間ができます */
+  /* FlexboxからGridに変更 */
+  display: grid;
+  /* 2列のグリッドを定義 */
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
-  /* 水平方向の中央寄せ */
-  align-items: center;
   max-width: 80%;
   margin: 0 auto;
 }
 
 .video-wrapper {
-  /* 縦並びのため、flex: 1 は不要 */
-  flex: none;
-  /* 横幅を100%に設定 */
+  /* Gridではflexやmax-widthの設定は不要 */
   width: 100%;
-  /* 縦に並ぶので max-width は不要 */
-  max-width: none;
 }
 
 img {

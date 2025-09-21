@@ -1,23 +1,25 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-  <title>FastAPI REST API Stream</title>
-  <link rel="stylesheet" href="/static/style.css" type="text/css">
+    <title>トップページ</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        .links-container { display: flex; flex-direction: column; gap: 20px; align-items: center; }
+        .link-button { 
+            display: inline-block; padding: 15px 30px; 
+            font-size: 1.2em; text-decoration: none; 
+            color: white; background-color: #007bff; 
+            border-radius: 5px; transition: background-color 0.3s ease; 
+        }
+        .link-button:hover { background-color: #0056b3; }
+    </style>
 </head>
-
 <body>
-  <div class="container">
-    <h1>Webカメラ映像</h1>
-    <div class="video-wrapper">
-      <h2>1. 元の映像</h2>
-      <img src="/raw_video_feed" alt="元のカメラ映像">
+    <h1>映像ストリームデモ</h1>
+    <div class="links-container">
+        <a href="/compare" class="link-button">すべての比較ページに移動</a>
+        <a href="/rest" class="link-button">REST API のみの比較ページに移動</a>
+        <a href="/ws" class="link-button">WebSocket のみの比較ページに移動</a>
     </div>
-    <div class="video-wrapper">
-      <h2>2. FPS表示付き映像</h2>
-      <img src="/processed_video_feed" alt="加工後のカメラ映像">
-    </div>
-  </div>
 </body>
-
 </html>
