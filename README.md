@@ -28,8 +28,12 @@ pip install uv
 
 # 仮想環境を作成し、必要なライブラリをインストール
 uv venv
-source .venv/bin/activate
-uv pip install -r requirements.txt
+
+# 依存関係の同期
+uv sync
+
+# ロックファイルの更新
+uv lock
 ```
 
 ### **4. 実行**
@@ -42,6 +46,9 @@ uvicorn main:app --reload
 
 # または、仮想環境を有効化せずにuv runで実行
 uv run uvicorn main:app --reload
+
+# streamlitで実行
+uv run streamlit run streamlit/app.py
 ```
 
   * `main:app` は、`main.py` ファイル内の `FastAPI` インスタンス名 `app` を指します。

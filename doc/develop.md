@@ -1,7 +1,3 @@
-承知しました。 speakerdeckの資料を参考に、uvをフル活用した初期開発手順をMarkdown形式でまとめます。
-
------
-
 ## 🚀 YOLOリアルタイムトラッキング 初期開発手順
 
 本ドキュメントは、Pythonのパッケージマネージャ **uv** を使用して、YOLOを用いたリアルタイムオブジェクトトラッキングシステムの開発環境を構築・実行するための手順をまとめたものです。
@@ -48,22 +44,24 @@ opencv-python
 ```sh
 # .venv という名前で仮想環境を作成し、requirements.txt の内容をインストール
 uv venv
-uv pip install -r requirements.txt
 
 # 単発でのパッケージ追加例
-uv add fastapi
+uv add fastapi ultralytics uvicorn opencv-python streamlit
 
 # 現在のパッケージ確認
 uv pip list
 
-# 依存関係の同期
-uv sync
+# （参考）pip用パッケージ出力
+uv pip freeze > requirements.txt
 
 # 依存関係のロックファイル更新
 uv lock
 
 # 依存関係のツリー表示
 uv tree
+
+# 依存関係の同期
+uv sync
 ```
 
 -----
@@ -80,6 +78,10 @@ uv tree
 
 ```sh
 uv run uvicorn main:app --reload
+
+# tracking のみ実行
+cd tracker
+uv run tracker.py
 ```
 
 このコマンドは、裏で `uv` が `main:app` を実行するために必要な仮想環境を一時的に有効化します。これにより、環境の切り替えを意識することなく、スムーズに開発を進めることができます。

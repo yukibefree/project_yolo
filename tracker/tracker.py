@@ -30,7 +30,7 @@ class Tracker:
         # --- モデル設定 ---
         # モデルファイル（.pt）が保存されているディレクトリのパス
         model_path = os.path.join(os.path.dirname(__file__), 'models')
-        # 使用するYOLOv8モデルの名前。'n'は「nano」を表す軽量で高速なモデルです。
+        # 使用するYOLOモデルの名前。'n'は「nano」を表す軽量で高速なモデルです。
         model_name = "yolo12n.pt"
         # モデルファイルへの完全なパス
         model_file = os.path.join(model_path, model_name)
@@ -119,7 +119,6 @@ class Tracker:
         selected_bbox = None
         selected_center = None
 
-
     def get_center(self, x1: int, y1: int, x2: int, y2: int) -> tuple[int, int]:
         """
         Calculate the center point of a bounding box.
@@ -163,7 +162,6 @@ class Tracker:
         else:
             return mid_x, mid_y
 
-
     def draw_tracking_scope(self, im, bbox: tuple, color: tuple) -> None:
         """
         Draw tracking scope lines extending from the bounding box to image edges.
@@ -182,7 +180,6 @@ class Tracker:
         cv2.line(im, mid_bottom, self.extend_line_from_edge(*mid_bottom, "down", im.shape), color, 2)
         cv2.line(im, mid_left, self.extend_line_from_edge(*mid_left, "left", im.shape), color, 2)
         cv2.line(im, mid_right, self.extend_line_from_edge(*mid_right, "right", im.shape), color, 2)
-
 
     def click_event(self, event: int, x: int, y: int, flags: int, param) -> None:
         """
@@ -221,68 +218,68 @@ class Tracker:
             self.vw.release()
         cv2.destroyAllWindows()
         
-    def exec(self):
-        cv2.namedWindow(self.window_name)
-        cv2.setMouseCallback(self.window_name, self.click_event)
+    def track(self, im=None, fps_counter=0, fps_timer=time.time(), fps_display=0, server=False):
+        if im is None:
+          success, im = self.cap.read()
+          if not success:
+              return
 
-        fps_counter, fps_timer, fps_display = 0, time.time(), 0
+        # 物体追跡と描画
+        self.results = self.model.track(im, conf=self.conf, iou=self.iou, max_det=self.max_det, tracker=self.tracker, classes=self.target_classes, **self.track_args)
+        annotator = Annotator(im)
+        detections = self.results[0].boxes.data if self.results[0].boxes is not None else []
+        detected_objects = []
+        
+        for track in detections:
+            track = track.tolist()
+            if len(track) < 6:
+                continue
+            x1, y1, x2, y2 = map(int, track[:4])
+            class_id = int(track[6]) if len(track) >= 7 else int(track[5])
+            track_id = int(track[4]) if len(track) == 7 else -1
+            color = colors(track_id, True)
+            txt_color = annotator.get_txt_color(color)
+            label = f"{self.classes[class_id]} ID {track_id}" + (f" ({float(track[5]):.2f})" if self.show_conf else "")
+            if track_id == self.selected_object_id:
+                # アクティブな追跡対象の描画
+                self.draw_tracking_scope(im, (x1, y1, x2, y2), color)
+                center = self.get_center(x1, y1, x2, y2)
+                cv2.circle(im, center, 6, color, -1)
 
-        while self.cap.isOpened():
-            success, im = self.cap.read()
-            if not success:
-                break
+                # Pulsing circle for attention
+                pulse_radius = 8 + int(4 * abs(time.time() % 1 - 0.5))
+                cv2.circle(im, center, pulse_radius, color, 2)
 
-            self.results = self.model.track(im, conf=self.conf, iou=self.iou, max_det=self.max_det, tracker=self.tracker, classes=self.target_classes, **self.track_args)
-            annotator = Annotator(im)
-            detections = self.results[0].boxes.data if self.results[0].boxes is not None else []
-            detected_objects = []
-            for track in detections:
-                track = track.tolist()
-                if len(track) < 6:
-                    continue
-                x1, y1, x2, y2 = map(int, track[:4])
-                class_id = int(track[6]) if len(track) >= 7 else int(track[5])
-                track_id = int(track[4]) if len(track) == 7 else -1
-                color = colors(track_id, True)
-                txt_color = annotator.get_txt_color(color)
-                label = f"{self.classes[class_id]} ID {track_id}" + (f" ({float(track[5]):.2f})" if self.show_conf else "")
-                if track_id == self.selected_object_id:
-                    self.draw_tracking_scope(im, (x1, y1, x2, y2), color)
-                    center = self.get_center(x1, y1, x2, y2)
-                    cv2.circle(im, center, 6, color, -1)
+                annotator.box_label([x1, y1, x2, y2], label=f"ACTIVE: TRACK {track_id}", color=color)
+            else:
+                # その他の物体の描画
+                for i in range(x1, x2, 10):
+                    cv2.line(im, (i, y1), (i + 5, y1), color, 3)
+                    cv2.line(im, (i, y2), (i + 5, y2), color, 3)
+                for i in range(y1, y2, 10):
+                    cv2.line(im, (x1, i), (x1, i + 5), color, 3)
+                    cv2.line(im, (x2, i), (x2, i + 5), color, 3)
+                # Draw label text with background
+                (tw, th), bl = cv2.getTextSize(label, 0, 0.7, 2)
+                cv2.rectangle(im, (x1 + 5 - 5, y1 + 20 - th - 5), (x1 + 5 + tw + 5, y1 + 20 + bl), color, -1)
+                cv2.putText(im, label, (x1 + 5, y1 + 20), 0, 0.7, txt_color, 1, cv2.LINE_AA)
 
-                    # Pulsing circle for attention
-                    pulse_radius = 8 + int(4 * abs(time.time() % 1 - 0.5))
-                    cv2.circle(im, center, pulse_radius, color, 2)
+        if self.show_fps:
+            fps_counter += 1
+            if time.time() - fps_timer >= 1.0:
+                fps_display = fps_counter
+                fps_counter = 0
+                fps_timer = time.time()
 
-                    annotator.box_label([x1, y1, x2, y2], label=f"ACTIVE: TRACK {track_id}", color=color)
-                else:
-                    # Draw dashed box for other objects
-                    for i in range(x1, x2, 10):
-                        cv2.line(im, (i, y1), (i + 5, y1), color, 3)
-                        cv2.line(im, (i, y2), (i + 5, y2), color, 3)
-                    for i in range(y1, y2, 10):
-                        cv2.line(im, (x1, i), (x1, i + 5), color, 3)
-                        cv2.line(im, (x2, i), (x2, i + 5), color, 3)
-                    # Draw label text with background
-                    (tw, th), bl = cv2.getTextSize(label, 0, 0.7, 2)
-                    cv2.rectangle(im, (x1 + 5 - 5, y1 + 20 - th - 5), (x1 + 5 + tw + 5, y1 + 20 + bl), color, -1)
-                    cv2.putText(im, label, (x1 + 5, y1 + 20), 0, 0.7, txt_color, 1, cv2.LINE_AA)
-
-            if self.show_fps:
-                fps_counter += 1
-                if time.time() - fps_timer >= 1.0:
-                    fps_display = fps_counter
-                    fps_counter = 0
-                    fps_timer = time.time()
-
-                # Draw FPS text with background
-                fps_text = f"FPS: {fps_display}"
-                cv2.putText(im, fps_text, (10, 25), 0, 0.7, (255, 255, 255), 1)
-                (tw, th), bl = cv2.getTextSize(fps_text, 0, 0.7, 2)
-                cv2.rectangle(im, (10 - 5, 25 - th - 5), (10 + tw + 5, 25 + bl), (255, 255, 255), -1)
-                cv2.putText(im, fps_text, (10, 25), 0, 0.7, (104, 31, 17), 1, cv2.LINE_AA)
-
+            # Draw FPS text with background
+            fps_text = f"FPS: {fps_display}"
+            cv2.putText(im, fps_text, (10, 25), 0, 0.7, (255, 255, 255), 1)
+            (tw, th), bl = cv2.getTextSize(fps_text, 0, 0.7, 2)
+            cv2.rectangle(im, (10 - 5, 25 - th - 5), (10 + tw + 5, 25 + bl), (255, 255, 255), -1)
+            cv2.putText(im, fps_text, (10, 25), 0, 0.7, (104, 31, 17), 1, cv2.LINE_AA)
+        
+        # 
+        if server:
             cv2.imshow(self.window_name, im)
             if self.save_video and self.vw is not None:
                 self.vw.write(im)
@@ -291,10 +288,31 @@ class Tracker:
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):
-                break
+                return
             elif key == ord("c"):
                 LOGGER.info("🟢 TRACKING RESET")
                 self.selected_object_id = None
+        else:
+            return im
+
+    def exec(self, im=None, server=False, raw=False):
+        if server:
+            cv2.namedWindow(self.window_name)
+            cv2.setMouseCallback(self.window_name, self.click_event)
+
+        while self.cap.isOpened():
+            if raw:
+                _, frame = self.cap.read()
+            else:
+                frame = self.track(im, server=server)
+            # JPEG形式にエンコード
+            _, buffer = cv2.imencode('.jpg', frame)
+            frame_bytes = buffer.tobytes()
+            # ストリームとしてフレームをyield
+            yield (
+                b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n'
+            )
         self.close_camera()
 
 if __name__ == '__main__':
