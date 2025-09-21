@@ -6,7 +6,27 @@
 </head>
 
 <body>
-  <img id="video-feed" alt="Websocket Video Feed">
-  <script src="/static/script.js" async></script>
+  <h1>Webカメラ映像</h1>
+  <div class="container">
+    <div class="video-wrapper">
+      <h2>Websocket元映像</h2>
+      <img id="raw-video-feed" alt="Websocketでの元カメラ映像">
+    </div>
+    <div class="video-wrapper">
+      <h2>Websocket加工後映像</h2>
+      <img id="processed-video-feed" alt="Websocketでの加工後カメラ映像">
+    </div>
+  </div>
+  <script src="/static/script.js"></script>
+  <script>
+  // ページ読み込み後に映像ストリームを開始
+  document.addEventListener('DOMContentLoaded', (event) => {
+    // カメラ1の映像を '/ws/camera1' から取得し、'camera1-feed' に表示
+    startVideoStream("ws://localhost:8000/ws_raw_video_feed", "raw-video-feed");
+    
+    // カメラ2の映像を '/ws/camera2' から取得し、'camera2-feed' に表示
+    startVideoStream("ws://localhost:8000/ws_processed_video_feed", "processed-video-feed");
+  });
+</script>
 </body>
 </html>
