@@ -32,7 +32,7 @@ class SelectCamera:
         
         if not self.camera_list:
             print("⚠️ カメラが見つかりませんでした。")
-            return False
+            raise RuntimeError("Camera not found.")
         return True
 
     def _display_camera_info(self):
