@@ -23,6 +23,12 @@ cd project_yolo
 本プロジェクトの依存関係を管理するため、uvを使用します。
 
 ```sh
+# pythonをインストール
+# https://www.python.org/
+
+# バージョン確認
+python --version
+
 # uvをインストール
 pip install uv
 
