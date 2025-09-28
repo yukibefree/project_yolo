@@ -11,12 +11,22 @@ sys.path.append(root_dir)
 
 from tracker.tracker import Tracker
 
-def main():
+# 動画像設定
+url = 'https://www.youtube.com/watch?v=XBnob1Mps4g'
+
+def exec_streamlit():
+    # ページ設定
+    st.set_page_config(layout="wide") 
     st.title("Webカメラ映像")
 
+    # 横並びに2つのカラムを作成
+    col1, col2 = st.columns(2)
+    
     # 映像表示用のプレースホルダーを作成
-    frame_placeholder1 = st.empty()
-    frame_placeholder2 = st.empty()
+    with col1:
+        frame_placeholder1 = st.empty()
+    with col2:
+        frame_placeholder2 = st.empty()
 
     tracker = Tracker()
 
@@ -26,10 +36,20 @@ def main():
 
     prev_time = time.time()
     while tracker.cap.isOpened():
-        ret, frame = tracker.cap.read()
-        if not ret:
+        if not tracker.url:
+          # カメラからフレームを取得
+          ret, frame = tracker.cap.read()
+          if not ret:
             st.warning("フレームの取得に失敗しました。")
             break
+        else:
+          # YouTube動画からフレームを取得
+          _, images, _ = next(tracker.load_streams)
+          if images is None:
+              st.warning("フレームの取得に失敗しました。")
+              break
+          else:
+              frame = images[0]
 
         # フレームをRGBに変換
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -38,19 +58,12 @@ def main():
         frame_placeholder1.image(frame_rgb, channels="RGB", width='content')
 
         # 2つ目の映像 (FPS表示付き)
-        frame_processed = tracker.track(frame, server=False)
-        current_time = time.time()
-        fps = 1 / (current_time - prev_time)
-        prev_time = current_time
-        
-        # FPSをフレームに描画
-        fps_text = f"FPS: {fps:.2f}"
-        cv2.putText(frame_processed, fps_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-        
+        frame_processed = tracker.track(frame)
+
         frame_rgb_with_fps = cv2.cvtColor(frame_processed, cv2.COLOR_BGR2RGB)
         frame_placeholder2.image(frame_rgb_with_fps, channels="RGB", width='content')
 
-    tracker.close_camera()
+    tracker.release_capture()
 
 if __name__ == "__main__":
-    main()
+    exec_streamlit()

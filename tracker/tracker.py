@@ -7,11 +7,13 @@ import time
 import os
 import sys
 import cv2
+import yt_dlp
 
 from ultralytics import YOLO
 from ultralytics.utils import LOGGER
 from ultralytics.utils.plotting import Annotator, colors
 import asyncio
+import subprocess
 
 # プロジェクトルートの設定
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,9 +21,15 @@ sys.path.append(root_dir)
 
 from utils.select_camera import SelectCamera
 from utils.common import load_yaml
+from utils.stream_loader import LoadStreams
+from utils.utils import check_requirements
+
+# 必要なパッケージの確認とインストール
+#check_requirements('pytubefix>=6.5.2')
+#check_requirements('yt-dlp')
 
 class Tracker:
-    def __init__(self):
+    def __init__(self, url=None):
         """設定を初期化します。"""
 
         # --- 環境設定 ---
@@ -39,6 +47,10 @@ class Tracker:
         model_file = os.path.join(model_path, model_name)
 
         # --- 動画・表示設定 ---
+        # URLの設定
+        self.url = url
+        # LoadStreamsオブジェクトの初期化
+        self.load_streams = None
         # 画面左上に現在のFPS（1秒あたりのフレーム数）を表示するかどうか。
         self.show_fps = False
         # 検出されたオブジェクトの信頼度（Confidence Score）を表示するかどうか。
@@ -56,7 +68,7 @@ class Tracker:
         # 追跡クラスが格納されたファイルを読み取る
         coco_data = load_yaml(os.path.join(model_path, 'coco.yaml'))
         class_data = coco_data['names']
-        
+
         # 追跡するオブジェクトの種類をクラスIDで指定します。
         keys_to_extract = ['person', 'car']
         self.target_classes = [key for key, value in class_data.items() if value in keys_to_extract]
@@ -95,7 +107,10 @@ class Tracker:
             self.model = YOLO(model_file, task="detect")
 
         self.classes = self.model.names  # Store model class names
-        self.setup_camera()
+
+        # URLがあるかないかで処理を変える
+        self.setup_video(url) if url else self.setup_camera()
+        # ビデオライターの設定
         self.setup_video_writer()
 
     def setup_camera(self):
@@ -106,6 +121,17 @@ class Tracker:
         select_camera = SelectCamera()
         camera_index = select_camera.get_camera_index()
         self.cap = cv2.VideoCapture(camera_index)
+
+    def setup_video(self, url: str):
+        """YouTube動画をセットアップする。"""
+        # 既存のストリームがあれば、クローズしてから再初期化する
+        if self.load_streams:
+            self.load_streams.close()
+        self.load_streams = LoadStreams(url)
+        self.cap = self.load_streams.caps[0]
+        if not self.cap.isOpened():
+            raise RuntimeError("動画ストリームの初期化に失敗しました。")
+        LOGGER.info(f"✅ ストリームソースから動画を読み込みました: {url}")
 
     def setup_video_writer(self):
         """
@@ -123,6 +149,12 @@ class Tracker:
         self.selected_object_id = None
         selected_bbox = None
         selected_center = None
+
+    def release_capture(self):
+        self.cap.release()
+        if self.save_video and self.vw is not None:
+            self.vw.release()
+        cv2.destroyAllWindows()
 
     def get_center(self, x1: int, y1: int, x2: int, y2: int) -> tuple[int, int]:
         """
@@ -216,15 +248,20 @@ class Tracker:
                 if best_match:
                     self.selected_object_id, label = best_match
                     print(f"🔵 TRACKING STARTED: {label} (ID {self.selected_object_id})")
-                    
-    def close_camera(self):
-        self.cap.release()
-        if self.save_video and self.vw is not None:
-            self.vw.release()
-        cv2.destroyAllWindows()
-        
-    def track(self, im=None, fps_counter=0, fps_timer=time.time(), fps_display=0, server=False):
-        if im is None:
+
+    def track(self, im=None, raw=False, fps_counter=0, fps_timer=time.time(), fps_display=0, server=False):
+        if self.url and im is None:
+            if self.load_streams is None:
+                self.setup_video(self.url)
+            # YouTube動画からフレームを取得
+            _, images, _ = next(self.load_streams)
+            if images is None:
+                return
+            elif raw:
+                return images[0]
+            else:
+                im = images[0]
+        elif im is None:
           success, im = self.cap.read()
           if not success:
               return
@@ -234,7 +271,7 @@ class Tracker:
         annotator = Annotator(im)
         detections = self.results[0].boxes.data if self.results[0].boxes is not None else []
         detected_objects = []
-        
+
         for track in detections:
             track = track.tolist()
             if len(track) < 6:
@@ -282,7 +319,7 @@ class Tracker:
             (tw, th), bl = cv2.getTextSize(fps_text, 0, 0.7, 2)
             cv2.rectangle(im, (10 - 5, 25 - th - 5), (10 + tw + 5, 25 + bl), (255, 255, 255), -1)
             cv2.putText(im, fps_text, (10, 25), 0, 0.7, (104, 31, 17), 1, cv2.LINE_AA)
-        
+
         # サーバー側のみの処理の場合
         if server:
             cv2.imshow(self.window_name, im)
@@ -300,43 +337,59 @@ class Tracker:
         else:
             return im
 
+    def track_safe(self, im=None, raw=False, fps_counter=0, fps_timer=time.time(), fps_display=0, server=False):
+        while True:
+            try:
+                im = self.track(im, raw=raw, fps_counter=fps_counter, fps_timer=fps_timer, fps_display=fps_display, server=server)
+                return im
+            except StopIteration:
+                self.load_streams = None
+                continue 
+            except Exception as e:
+                LOGGER.error(f"Error during tracking: {e}")
+                assert self.url, "動画ストリームのエラーが発生しましたが、URLが設定されていません。"
+
     def exec(self, im=None, server=False, raw=False):
         if server:
             cv2.namedWindow(self.window_name)
             cv2.setMouseCallback(self.window_name, self.click_event)
 
         while self.cap.isOpened():
-            if raw:
+            if self.url:
+                frame = self.track_safe(raw=raw, server=server)
+            elif raw:
                 _, frame = self.cap.read()
             else:
                 frame = self.track(im, server=server)
             # JPEG形式にエンコード
             _, buffer = cv2.imencode('.jpg', frame)
             frame_bytes = buffer.tobytes()
-            
+
             # ストリームとしてフレームをyield
             yield (
                 b'--frame\r\n'
                 b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n'
             )
-        self.close_camera()
+        self.release_capture()
 
     async def ws_exec(self, im=None, raw=False):
         while self.cap.isOpened():
-            if raw:
+            if self.url:
+                frame = self.track_safe(raw=raw)
+            elif raw:
                 _, frame = self.cap.read()
             else:
                 frame = self.track(im)
             # JPEG形式にエンコード
             _, buffer = cv2.imencode('.jpg', frame)
             frame_bytes = buffer.tobytes()
-            
+
             # 非同期でフレームをyield
             yield frame_bytes
-            
+
             await asyncio.sleep(0.01)
-            
-        self.close_camera()
+
+        self.release_capture()
 if __name__ == '__main__':
     tracker = Tracker()
     tracker.exec()

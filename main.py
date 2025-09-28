@@ -14,6 +14,9 @@ from app_globals import globals
 root_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(root_dir)
 
+# 動画像設定
+url = 'https://www.youtube.com/watch?v=XBnob1Mps4g'
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -27,10 +30,10 @@ async def lifespan(app: FastAPI):
     yield
     # サーバー終了時の処理
     if globals.tracker:
-        globals.tracker.close_camera()
+        globals.tracker.release_capture()
         print("Tracker resources released.")
     if globals.ws_tracker:
-        globals.ws_tracker.close_camera()
+        globals.ws_tracker.release_capture()
         print("Tracker resources released.")
 
 # FastAPIアプリケーションのインスタンス
