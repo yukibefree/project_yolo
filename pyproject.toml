@@ -8,10 +8,12 @@ dependencies = [
     "fastapi>=0.117.1",
     "lap>=0.5.12",
     "opencv-python>=4.11.0.86",
+    "pafy>=0.5.5",
     "pytubefix>=9.5.1",
     "pyyaml>=6.0.2",
     "streamlit>=1.49.1",
     "ultralytics>=8.3.202",
     "uvicorn>=0.36.0",
     "websockets>=15.0.1",
+    "yt-dlp>=2025.9.23",
 ]
