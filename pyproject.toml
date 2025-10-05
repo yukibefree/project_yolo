@@ -3,7 +3,7 @@ name = "project-yolo"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12.3"
+requires-python = ">=3.10.10"
 dependencies = [
     "fastapi>=0.117.1",
     "lap>=0.5.12",
@@ -11,6 +11,7 @@ dependencies = [
     "pafy>=0.5.5",
     "pytubefix>=9.5.1",
     "pyyaml>=6.0.2",
+    "shapely>=2.1.2",
     "streamlit>=1.49.1",
     "ultralytics>=8.3.202",
     "uvicorn>=0.36.0",
