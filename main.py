@@ -24,8 +24,8 @@ async def lifespan(app: FastAPI):
     サーバー起動時にトラッカーを初期化し、終了時にリソースを解放します。
     """
     # サーバー起動時の処理
-    globals.tracker = Tracker()
-    globals.ws_tracker = Tracker()
+    globals.tracker = Tracker(url=url)
+    globals.ws_tracker = Tracker(url=url)
     print("Tracker initialized.")
     yield
     # サーバー終了時の処理
@@ -56,5 +56,5 @@ if __name__ == "__main__":
         "main:app", 
         host="0.0.0.0", 
         port=8000,
-        reload=True
+        #reload=True
     )

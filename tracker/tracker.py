@@ -14,6 +14,8 @@ from ultralytics.utils import LOGGER
 from ultralytics.utils.plotting import Annotator, colors
 import asyncio
 import subprocess
+import threading
+import queue
 
 # プロジェクトルートの設定
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -47,6 +49,8 @@ class Tracker:
         model_file = os.path.join(model_path, model_name)
 
         # --- 動画・表示設定 ---
+        self.frame_buffer = queue.Queue(maxsize=5) # 5フレーム分のバッファ
+        self.stop_event = threading.Event() # スレッド停止用のイベント
         # URLの設定
         self.url = url
         # LoadStreamsオブジェクトの初期化
@@ -113,6 +117,10 @@ class Tracker:
         # ビデオライターの設定
         self.setup_video_writer()
 
+        # I/Oを処理する専用スレッドを起動
+        if url:
+            self.start_frame_reader_thread()
+
     def setup_camera(self):
         """
         カメラをセットアップします。
@@ -150,12 +158,70 @@ class Tracker:
         selected_bbox = None
         selected_center = None
 
+    def start_frame_reader_thread(self):
+        """動画I/O専用スレッドを開始する"""
+        self.reader_thread = threading.Thread(target=self._read_frames_to_buffer, daemon=True)
+        self.reader_thread.start()
+        LOGGER.info("フレーム読み込みスレッドを開始しました。")
+
+    def _read_frames_to_buffer(self):
+        """動画ストリームからフレームを読み込み、共有バッファに格納する（I/O専用）"""
+        # LoadStreamsの初期化はsetup_videoで既に完了している前提
+        
+        # YouTubeストリームのイテレータ
+        stream_iterator = self.load_streams # LoadStreamsオブジェクト自体がイテレータ
+        
+        while not self.stop_event.is_set():
+            try:
+                # 💡 ストリームからフレームを消費するのはこのスレッドのみ
+                _, images, _ = next(stream_iterator)
+                if images is None:
+                    # ストリーム終了、またはエラー
+                    self.stop_event.set()
+                    break
+                    
+                im = images[0]
+                
+                # バッファがいっぱいなら、最も古いフレームを捨てる（低遅延を維持）
+                if self.frame_buffer.full():
+                    self.frame_buffer.get_nowait()
+                
+                # 新しいフレームをバッファに追加
+                self.frame_buffer.put(im)
+                
+            except StopIteration:
+                self.stop_event.set() # ストリームが終了
+                break
+            except Exception as e:
+                LOGGER.error(f"フレーム読み込みエラー: {e}")
+                time.sleep(1)
+        LOGGER.info("フレーム読み込みスレッドを終了しました。")
+
     def release_capture(self):
-        self.cap.release()
-        if self.save_video and self.vw is not None:
-            self.vw.release()
+        """リソース解放時にスレッドを停止する"""
+        self.stop_event.set()
+        if hasattr(self, 'reader_thread') and self.reader_thread.is_alive():
+            self.reader_thread.join()
+        
+        # ... (既存の self.cap.release() などの処理) ...
+        # self.load_streams.close() も忘れずに
+        if self.load_streams:
+              self.load_streams.close()
         cv2.destroyAllWindows()
 
+    def _process_frame(self, im, raw=False):
+        """推論と描画処理のみを行う（I/Oなし）"""
+        if raw:
+            # 生のフレームをそのまま返す（最も高速）
+            return im
+
+        # 既存の track() の推論・描画ロジックをここに移動
+        # 例:
+        self.results = self.model.track(im, ...)
+        annotator = Annotator(im)
+        # ... (検出、描画ロジックをここに記述) ...
+        
+        return im
     def get_center(self, x1: int, y1: int, x2: int, y2: int) -> tuple[int, int]:
         """
         Calculate the center point of a bounding box.
@@ -344,25 +410,30 @@ class Tracker:
                 return im
             except StopIteration:
                 self.load_streams = None
-                continue 
+                continue
             except Exception as e:
                 LOGGER.error(f"Error during tracking: {e}")
                 assert self.url, "動画ストリームのエラーが発生しましたが、URLが設定されていません。"
 
-    def exec(self, im=None, server=False, raw=False):
-        if server:
-            cv2.namedWindow(self.window_name)
-            cv2.setMouseCallback(self.window_name, self.click_event)
+    def exec(self, raw=False):
+        """
+        FastAPIのストリーミング用ジェネレータ。
+        バッファからフレームを取り出し、処理する。
+        """
+        while self.cap.isOpened() and not self.stop_event.is_set():
+            try:
+                # 💡 読み込み専用スレッドが用意したフレームをバッファから取得
+                # タイムアウトを設定し、フレームが来るまでブロックする
+                frame_to_process = self.frame_buffer.get(timeout=1) 
+            except queue.Empty:
+                # タイムアウトした場合やバッファが空の場合はスキップ
+                continue 
 
-        while self.cap.isOpened():
-            if self.url:
-                frame = self.track_safe(raw=raw, server=server)
-            elif raw:
-                _, frame = self.cap.read()
-            else:
-                frame = self.track(im, server=server)
+            # 💡 取得したフレームに対して処理を実行 (raw=True なら処理なし)
+            processed_frame = self._process_frame(frame_to_process.copy(), raw=raw)
+
             # JPEG形式にエンコード
-            _, buffer = cv2.imencode('.jpg', frame)
+            _, buffer = cv2.imencode('.jpg', processed_frame)
             frame_bytes = buffer.tobytes()
 
             # ストリームとしてフレームをyield
@@ -370,6 +441,7 @@ class Tracker:
                 b'--frame\r\n'
                 b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n'
             )
+            
         self.release_capture()
 
     async def ws_exec(self, im=None, raw=False):
@@ -380,6 +452,11 @@ class Tracker:
                 _, frame = self.cap.read()
             else:
                 frame = self.track(im)
+
+            if frame is None:
+                if not self.url:
+                    time.sleep(0.01)
+                continue
             # JPEG形式にエンコード
             _, buffer = cv2.imencode('.jpg', frame)
             frame_bytes = buffer.tobytes()

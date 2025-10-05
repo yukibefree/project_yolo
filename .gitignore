@@ -34,3 +34,9 @@ desktop.ini
 .Trashes
 .Spotlight-V100
 .fseventsd
+
+# 全ての動画ファイルを無視するルール
+movie/
+*.mp4
+*.mov
+*.avi
