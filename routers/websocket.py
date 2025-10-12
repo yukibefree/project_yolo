@@ -29,3 +29,12 @@ async def start_ws_processed_video_feed(websocket: WebSocket):
             await websocket.send_bytes(frame_bytes)
     except WebSocketDisconnect:
         print("クライアントが切断しました。")
+
+@router.websocket("/ws_processed_parking_feed")
+async def start_ws_processed_parking_feed(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        async for frame_bytes in globals.ws_parking_manager.ws_exec():
+            await websocket.send_bytes(frame_bytes)
+    except WebSocketDisconnect:
+        print("クライアントが切断しました。")

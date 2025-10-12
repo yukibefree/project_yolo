@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 from tracker.tracker import Tracker
+from solutions.parking.parking_management import ParkingManagement
 import numpy as np
 from routers import root, rest_api, websocket
 from app_globals import globals
@@ -24,17 +25,19 @@ async def lifespan(app: FastAPI):
     サーバー起動時にトラッカーを初期化し、終了時にリソースを解放します。
     """
     # サーバー起動時の処理
-    globals.tracker = Tracker(url=url)
-    globals.ws_tracker = Tracker(url=url)
+    # globals.tracker = Tracker(url=url)
+    # globals.ws_tracker = Tracker(url=url)
+    globals.parking_manager = ParkingManagement()
+    globals.ws_parking_manager = ParkingManagement()
     print("Tracker initialized.")
     yield
     # サーバー終了時の処理
-    if globals.tracker:
-        globals.tracker.release_capture()
-        print("Tracker resources released.")
-    if globals.ws_tracker:
-        globals.ws_tracker.release_capture()
-        print("Tracker resources released.")
+    # if globals.tracker:
+    #     globals.tracker.release_capture()
+    #     print("Tracker resources released.")
+    # if globals.ws_tracker:
+    #     globals.ws_tracker.release_capture()
+    #     print("Tracker resources released.")
 
 # FastAPIアプリケーションのインスタンス
 app = FastAPI(lifespan=lifespan)

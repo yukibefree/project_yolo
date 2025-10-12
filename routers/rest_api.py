@@ -23,3 +23,9 @@ async def start_tracking_process():
     if globals.tracker:
         return StreamingResponse(globals.tracker.exec(), media_type="multipart/x-mixed-replace;boundary=frame")
     return {"message": "Tracker not initialized"}
+
+@router.get("/processed_parking_feed")
+async def start_parking_process():
+    if globals.parking_manager:
+        return StreamingResponse(globals.parking_manager.exec(), media_type="multipart/x-mixed-replace;boundary=frame")
+    return {"message": "Parking Manager not initialized"}
