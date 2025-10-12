@@ -47,6 +47,12 @@ uv lock
 uvを使用してアプリケーションを起動します。
 
 ```sh
+# アノテーション処理
+uv run ./solutions/parking/opencv_set_parking_area.py 
+
+# 駐車場の解析のみ
+uv run ./solutions/parking/parking_management.py
+
 # 仮想環境を有効化した状態で実行
 uvicorn main:app --reload
 
