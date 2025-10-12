@@ -40,3 +40,8 @@ movie/
 *.mp4
 *.mov
 *.avi
+
+# 一時ファイル
+sandbox/
+temp/
+tmp/
