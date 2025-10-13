@@ -41,6 +41,14 @@ movie/
 *.mov
 *.avi
 
+# example内の動画ファイルは除外しない
+!example/**/*.mp4
+!example/**/*.mov
+!example/**/*.avi
+
+# sourceファイルの中身は無視する
+source/
+
 # 一時ファイル
 sandbox/
 temp/

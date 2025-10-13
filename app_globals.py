@@ -5,5 +5,7 @@ class AppGlobals:
     def __init__(self):
         self.tracker = None
         self.ws_tracker = None
+        self.parking_manager = None
+        self.ws_parking_manager = None
 
 globals = AppGlobals()
